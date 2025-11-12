@@ -1,0 +1,19 @@
+from fastapi import FastAPI, Form, HTTPException, status
+
+app = FastAPI()
+
+# Example in-memory user database
+fake_users = {
+    "admin": {"username": "admin", "password": "1234"},
+    "user": {"username": "user", "password": "abcd"},
+}
+
+@app.post("/login")
+async def login(username: str = Form(...), password: str = Form(...)):
+    user = fake_users.get(username)
+    if not user or user["password"] != password:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid username or password",
+        )
+    return {"message": f"Welcome, {username}!"}
