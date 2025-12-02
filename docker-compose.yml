@@ -1,0 +1,64 @@
+services:
+  zookeeper:
+    image: wurstmeister/zookeeper
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    restart: always
+
+  kafka:
+    image: wurstmeister/kafka
+    container_name: kafka
+    restart: always
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    depends_on:
+      - zookeeper
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo > /dev/tcp/kafka/9092"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  producer_service:
+    build:
+      context: ./producer_service
+      dockerfile: Dockerfile.producer
+    container_name: producer_service
+    depends_on:
+      kafka:
+        condition: service_healthy
+    env_file:
+      - .env
+    restart: always
+
+  consumer_service:
+    build:
+      context: ./consumer_service
+      dockerfile: Dockerfile.consumer
+    container_name: consumer_service
+    depends_on:
+      kafka:
+        condition: service_healthy
+    env_file:
+      - .env
+    restart: always
+
+  fastapi:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: fastapi_app
+    env_file:
+      - .env
+    restart: always
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
